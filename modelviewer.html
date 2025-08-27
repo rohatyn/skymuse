@@ -69,11 +69,7 @@
     </style>
 </head>
 <body>
-    <div id="upload-container">
-        <label for="file-input" class="upload-btn">Select PLY/DRC Files</label>
-        <input id="file-input" type="file" accept=".ply,.drc" multiple>
-        <div id="loading">Loading...</div>
-    </div>
+    <div id="loading" style="padding: 10px; background: #333; color: #aaa;">Loading...</div>
     <div id="controls">
         <button id="rotate-toggle" class="control-btn">Pause Rotation</button>
         <button id="reset-view" class="control-btn">Reset View</button>
@@ -84,7 +80,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/PLYLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/DRACOLoader.js"></script>
     <script>
         // Initialize scene
         const scene = new THREE.Scene();
@@ -189,89 +184,78 @@
             event.preventDefault();
         });
 
-        // initialize all loader
+        // initialize loader
         const loader = new THREE.PLYLoader();
-        const dracoLoader = new THREE.DRACOLoader();
-        dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/libs/draco/');
         let loadedCount = 0;
         let totalFiles = 0;
 
-        // File upload handler
-        document.getElementById('file-input').addEventListener('change', function(e) {
-            const files = e.target.files;
-            if (files.length === 0) return;
-            
-            document.getElementById('loading').style.display = 'block';
-            totalFiles = files.length;
-            loadedCount = 0;
-            
-            // Clear existing models from scene
+        // Auto-load default PLY files from example-scene
+        const defaultFiles = [
+            'example-scene/mesh_layer0.ply',
+            'example-scene/mesh_layer1.ply',
+            'example-scene/mesh_layer2.ply'
+        ];
+
+        function clearSceneMeshes() {
             scene.children.slice().forEach(child => {
-            if (child instanceof THREE.Mesh) {
-                if (child.geometry) child.geometry.dispose();
-                if (child.material) child.material.dispose();
-                scene.remove(child);
-            }
+                if (child instanceof THREE.Mesh) {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
+                    scene.remove(child);
+                }
             });
-            
-            // Load each PLY file
-            Array.from(files).forEach((file, index) => {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    try {
-                        if (file.name.endsWith('.ply')) {
-                            const geometry = loader.parse(event.target.result);
-                            const material = new THREE.MeshBasicMaterial({
-                                side: THREE.DoubleSide,
-                                vertexColors: true,
-                            });
-                            const mesh = new THREE.Mesh(geometry, material);
-                            mesh.rotateX(-Math.PI / 2);
-                            mesh.rotateZ(-Math.PI / 2);
-                            scene.add(mesh);
-                        } else if (file.name.endsWith('.drc')) {
-                            // Draco file handling
-                            dracoLoader.decodeDracoFile(event.target.result, function(geometry) {
-                                // Compute normals for Draco geometry if missing
-                                if (!geometry.attributes.normal) {
-                                    geometry.computeVertexNormals();
-                                }
-                                const material = new THREE.MeshBasicMaterial({
-                                    side: THREE.DoubleSide,
-                                    vertexColors: true,
-                                });
-                                const mesh = new THREE.Mesh(geometry, material);
-                                mesh.rotateX(-Math.PI / 2);
-                                mesh.rotateZ(-Math.PI / 2);
-                                scene.add(mesh);
-                            });
-                        }
-                        
+        }
+
+        function loadDefaultFiles() {
+            document.getElementById('loading').style.display = 'block';
+            totalFiles = defaultFiles.length;
+            loadedCount = 0;
+
+            clearSceneMeshes();
+
+            defaultFiles.forEach((url) => {
+                loader.load(
+                    url,
+                    function(geometry) {
+                        const material = new THREE.MeshBasicMaterial({
+                            side: THREE.DoubleSide,
+                            vertexColors: true,
+                        });
+                        const mesh = new THREE.Mesh(geometry, material);
+                        mesh.rotateX(-Math.PI / 2);
+                        mesh.rotateZ(-Math.PI / 2);
+                        scene.add(mesh);
+
                         loadedCount++;
-                        if(loadedCount === totalFiles) {
+                        if (loadedCount === totalFiles) {
                             document.getElementById('loading').style.display = 'none';
                             positionCamera();
                             isRotating = true;
                             document.getElementById('rotate-toggle').textContent = 'Pause Rotation';
-                            animate(); // Start animation after loading
+                            if (!animationId) {
+                                animate();
+                            }
                         }
-                    } catch (error) {
+                    },
+                    undefined,
+                    function(error) {
                         console.error('Error loading PLY file:', error);
                         loadedCount++;
-                        if(loadedCount === totalFiles) {
+                        if (loadedCount === totalFiles) {
                             document.getElementById('loading').style.display = 'none';
                             if (scene.children.filter(c => c instanceof THREE.Mesh).length > 0) {
                                 positionCamera();
                                 isRotating = true;
                                 document.getElementById('rotate-toggle').textContent = 'Pause Rotation';
-                                animate(); // Start animation after loading
+                                if (!animationId) {
+                                    animate();
+                                }
                             }
                         }
                     }
-                };
-                reader.readAsArrayBuffer(file);
+                );
             });
-        });
+        }
         
         // Position camera reset
         function positionCamera() {
@@ -368,7 +352,8 @@
             animationId = requestAnimationFrame(animate);
         }
         
-        // Initial animation start
+        // Load default files and start animation
+        loadDefaultFiles();
         animate();
 
         // Window resize handler

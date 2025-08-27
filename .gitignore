@@ -1,0 +1,4 @@
+*.xlsx
+._*
+.DS_Store
+*.ply

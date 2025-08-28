@@ -78,9 +78,19 @@
         Controls: WASD to move, Mouse drag to look around
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/PLYLoader.js"></script>
-    <script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.module.js",
+                "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.132.2/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader.js';
+        import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
+
         // Initialize scene
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x222222);
@@ -91,6 +101,9 @@
         });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
+        
+        renderer.xr.enabled = true;
+        document.body.appendChild( VRButton.createButton( renderer ) );
         
         // Movement variables
         const moveSpeed = 0.01;
@@ -185,7 +198,7 @@
         });
 
         // initialize loader
-        const loader = new THREE.PLYLoader();
+        const loader = new PLYLoader();
         let loadedCount = 0;
         let totalFiles = 0;
 
@@ -354,6 +367,7 @@
         
         // Load default files and start animation
         loadDefaultFiles();
+        renderer.setAnimationLoop(animate);
         animate();
 
         // Window resize handler
